@@ -1,9 +1,15 @@
-import psycopg2
+from db import get_connection
 
-def create_tables():
+def init_db():
     commands = [
-        """
-        CREATE TABLE IF NOT EXISTS students (
+        "DROP TABLE IF EXISTS attendance CASCADE",
+        "DROP TABLE IF EXISTS grades CASCADE",
+        "DROP TABLE IF EXISTS enrollments CASCADE",
+        "DROP TABLE IF EXISTS courses CASCADE",
+        "DROP TABLE IF EXISTS students CASCADE",
+
+        '''
+        CREATE TABLE students (
             id SERIAL PRIMARY KEY,
             name VARCHAR(100) NOT NULL,
             email VARCHAR(100) UNIQUE NOT NULL,
@@ -11,34 +17,34 @@ def create_tables():
             dob DATE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS courses (
+        ''',
+        '''
+        CREATE TABLE courses (
             id SERIAL PRIMARY KEY,
             course_name VARCHAR(100) NOT NULL,
             credit_hours INT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS enrollments (
+        ''',
+        '''
+        CREATE TABLE enrollments (
             id SERIAL PRIMARY KEY,
             student_id INT REFERENCES students(id) ON DELETE CASCADE,
             course_id INT REFERENCES courses(id) ON DELETE CASCADE,
             enrolled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS grades (
+        ''',
+        '''
+        CREATE TABLE grades (
             id SERIAL PRIMARY KEY,
             student_id INT REFERENCES students(id) ON DELETE CASCADE,
             course_id INT REFERENCES courses(id) ON DELETE CASCADE,
             grade VARCHAR(5),
             graded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS attendance (
+        ''',
+        '''
+        CREATE TABLE attendance (
             id SERIAL PRIMARY KEY,
             student_id INT REFERENCES students(id) ON DELETE CASCADE,
             course_id INT REFERENCES courses(id) ON DELETE CASCADE,
@@ -46,28 +52,28 @@ def create_tables():
             status VARCHAR(20) CHECK (status IN ('Present', 'Absent', 'Late')),
             marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        """
+        '''
     ]
 
+    conn = get_connection()
+    if not conn:
+        print("Could not get DB connection.")
+        return False
+
     try:
-        conn = psycopg2.connect(
-            host="localhost",
-            database="student_management",
-            user="postgres",
-            password="Admin123",
-            port=5432
-        )
         cur = conn.cursor()
-        for command in commands:
-            cur.execute(command)
-        cur.close()
+        for sql in commands:
+            cur.execute(sql)
         conn.commit()
-        print("Tables created successfully!")
+        cur.close()
+        print("Database initialized (dropped & recreated tables).")
+        return True
     except Exception as e:
-        print(f"Error creating tables: {e}")
+        print(f"Error initializing DB: {e}")
+        conn.rollback()
+        return False
     finally:
-        if conn:
-            conn.close()
+        conn.close()
 
 if __name__ == "__main__":
-    create_tables()
+    init_db()
